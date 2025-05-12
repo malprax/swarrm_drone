@@ -1,0 +1,5 @@
+# Shortcut for Swarm Patrol Workspace
+alias start_swarm_ws='cd ~/swarm_ws && source devel/setup.bash'
+
+# Quick Launch
+alias run_swarm='cd ~/swarm_ws/src/swarm_patrol && ./start_all.sh'

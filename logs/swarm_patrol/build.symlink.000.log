@@ -1,0 +1,3 @@
+Symlinking /root/swarm_ws/devel/lib/pkgconfig/swarm_patrol.pc
+Symlinking /root/swarm_ws/devel/share/swarm_patrol/cmake/swarm_patrolConfig-version.cmake
+Symlinking /root/swarm_ws/devel/share/swarm_patrol/cmake/swarm_patrolConfig.cmake

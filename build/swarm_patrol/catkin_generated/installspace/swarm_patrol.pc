@@ -1,0 +1,8 @@
+prefix=/root/swarm_ws/install
+
+Name: swarm_patrol
+Description: Description of swarm_patrol
+Version: 0.0.1
+Cflags: 
+Libs: -L${prefix}/lib 
+Requires: 

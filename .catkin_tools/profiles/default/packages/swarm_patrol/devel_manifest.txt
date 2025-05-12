@@ -1,0 +1,4 @@
+swarm_patrol
+/root/swarm_ws/devel/.private/swarm_patrol/lib/pkgconfig/swarm_patrol.pc /root/swarm_ws/devel/lib/pkgconfig/swarm_patrol.pc
+/root/swarm_ws/devel/.private/swarm_patrol/share/swarm_patrol/cmake/swarm_patrolConfig-version.cmake /root/swarm_ws/devel/share/swarm_patrol/cmake/swarm_patrolConfig-version.cmake
+/root/swarm_ws/devel/.private/swarm_patrol/share/swarm_patrol/cmake/swarm_patrolConfig.cmake /root/swarm_ws/devel/share/swarm_patrol/cmake/swarm_patrolConfig.cmake

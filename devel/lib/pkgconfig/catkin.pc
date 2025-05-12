@@ -1,0 +1,8 @@
+prefix=/root/swarm_ws/devel
+
+Name: catkin
+Description: Description of catkin
+Version: 0.8.12
+Cflags: 
+Libs: -L${prefix}/lib 
+Requires: 

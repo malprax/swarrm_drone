@@ -1,0 +1,5 @@
+<launch>
+  <node pkg="rviz" type="rviz" name="rviz" output="screen">
+    <param name="fixed_frame" value="world"/>
+  </node>
+</launch>
