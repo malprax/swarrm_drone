@@ -1,0 +1,4 @@
+<launch>
+  <node pkg="swarm_patrol" type="room_marker.py" name="room_marker" output="screen" />
+  <node pkg="swarm_patrol" type="red_box_marker.py" name="red_box_marker" output="screen" />
+</launch>

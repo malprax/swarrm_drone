@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Swarm Drone Web UI</title>
+  <script src="https://cdn.jsdelivr.net/npm/roslib/build/roslib.min.js"></script>
+  <style>
+    body { font-family: Arial; margin: 20px; }
+    .log-box {
+      border: 1px solid #ccc;
+      padding: 10px;
+      height: 200px;
+      overflow-y: scroll;
+      background: #f9f9f9;
+      font-size: 13px;
+    }
+    button {
+      margin-top: 10px;
+      margin-bottom: 10px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Swarm Drone Controller</h1>
+
+  <label><b>Pilih Ruangan Kotak Merah:</b></label><br>
+  <input type="radio" name="room" value="Room 1"> Room 1<br>
+  <input type="radio" name="room" value="Room 2"> Room 2<br>
+  <input type="radio" name="room" value="Room 3"> Room 3<br>
+  <button onclick="sendRoomSelection()">Set Red Box Location</button><br>
+
+  <button onclick="disableLeader()">Nonaktifkan Drone Leader</button>
+
+  <h3>Log Sistem:</h3>
+  <div class="log-box" id="logArea"></div>
+
+  <script>
+    function logToUI(message) {
+      var logArea = document.getElementById("logArea");
+      var now = new Date().toLocaleTimeString();
+      logArea.innerHTML += `[${now}] ${message}<br>`;
+      logArea.scrollTop = logArea.scrollHeight;
+      console.log(message);
+    }
+
+    var ros = new ROSLIB.Ros({
+      url : 'ws://host.docker.internal:9090'  // GANTI SESUAI ENVIRONMEN
+    });
+
+    ros.on('connection', function() {
+      logToUI("✅ WebSocket berhasil terhubung ke ROSBridge.");
+    });
+
+    ros.on('error', function(error) {
+      logToUI("❌ WebSocket gagal terhubung: " + error);
+    });
+
+    ros.on('close', function() {
+      logToUI("🔌 WebSocket telah ditutup.");
+    });
+
+    // PUB untuk kontrol
+    var roomTopic = new ROSLIB.Topic({
+      ros : ros,
+      name : '/webui/room_selection',
+      messageType : 'std_msgs/String'
+    });
+
+    var killLeaderTopic = new ROSLIB.Topic({
+      ros : ros,
+      name : '/webui/disable_leader',
+      messageType : 'std_msgs/String'
+    });
+
+    function sendRoomSelection() {
+      var rooms = document.getElementsByName('room');
+      let selected = false;
+      for (var i = 0; i < rooms.length; i++) {
+        if (rooms[i].checked) {
+          selected = true;
+          var msg = new ROSLIB.Message({ data: rooms[i].value });
+          roomTopic.publish(msg);
+          logToUI("📡 Dikirim: Red box dipindahkan ke " + rooms[i].value);
+        }
+      }
+      if (!selected) logToUI("⚠️ Silakan pilih ruangan terlebih dahulu.");
+    }
+
+    function disableLeader() {
+      var msg = new ROSLIB.Message({ data: 'kill' });
+      killLeaderTopic.publish(msg);
+      logToUI("🛑 Permintaan pematian leader telah dikirim.");
+    }
+
+    // SUBSCRIBE Log Sistem
+    var logTopic = new ROSLIB.Topic({
+      ros : ros,
+      name : '/swarm/log',
+      messageType : 'std_msgs/String'
+    });
+
+    logTopic.subscribe(function(message) {
+      logToUI("📥 [LOG]: " + message.data);
+    });
+  </script>
+</body>
+</html>

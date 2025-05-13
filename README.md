@@ -393,6 +393,21 @@ if __name__ == '__main__':
 <head>
   <title>Swarm Drone Web UI</title>
   <script src="https://cdn.jsdelivr.net/npm/roslib/build/roslib.min.js"></script>
+  <style>
+    body { font-family: Arial; margin: 20px; }
+    .log-box {
+      border: 1px solid #ccc;
+      padding: 10px;
+      height: 200px;
+      overflow-y: scroll;
+      background: #f9f9f9;
+      font-size: 13px;
+    }
+    button {
+      margin-top: 10px;
+      margin-bottom: 10px;
+    }
+  </style>
 </head>
 <body>
   <h1>Swarm Drone Controller</h1>
@@ -401,13 +416,19 @@ if __name__ == '__main__':
   <input type="radio" name="room" value="Room 1"> Room 1<br>
   <input type="radio" name="room" value="Room 2"> Room 2<br>
   <input type="radio" name="room" value="Room 3"> Room 3<br>
-  <button onclick="sendRoomSelection()">Set Red Box Location</button><br><br>
+  <button onclick="sendRoomSelection()">Set Red Box Location</button><br>
 
   <button onclick="disableLeader()">Nonaktifkan Drone Leader</button>
 
-  <script>
-    var ros = new ROSLIB.Ros({ url : 'ws://localhost:9090' });
+  <h3>Log Sistem:</h3>
+  <div class="log-box" id="logArea"></div>
 
+  <script>
+    var ros = new ROSLIB.Ros({
+      url : 'ws://localhost:9090'
+    });
+
+    // PUB untuk kontrol
     var roomTopic = new ROSLIB.Topic({
       ros : ros,
       name : '/webui/room_selection',
@@ -434,6 +455,19 @@ if __name__ == '__main__':
       var msg = new ROSLIB.Message({ data: 'kill' });
       killLeaderTopic.publish(msg);
     }
+
+    // SUBSCRIBE Log Sistem
+    var logTopic = new ROSLIB.Topic({
+      ros : ros,
+      name : '/swarm/log',
+      messageType : 'std_msgs/String'
+    });
+
+    logTopic.subscribe(function(message) {
+      var logArea = document.getElementById("logArea");
+      logArea.innerHTML += message.data + "<br>";
+      logArea.scrollTop = logArea.scrollHeight;
+    });
   </script>
 </body>
 </html>
@@ -441,9 +475,200 @@ if __name__ == '__main__':
 
 ---
 
+### 📥 PETUNJUK MENJALANKAN SIMULASI (DARI AWAL)
+
+### 1. Buka Terminal di MacBook (Host)
+```bash
+cd ~/docker_shared/swarm_ws
+chmod +x start_docker_swarm.sh stop_docker_swarm.sh
+./start_docker_swarm.sh
+```
+> Ini akan menjalankan container bernama `swarm_patrol_container` dengan ROS Noetic.
+
+### 2. Masuk ke dalam Docker Container
+```bash
+docker exec -it swarm_patrol_container /bin/bash
+```
+
+### 3. Build Workspace ROS (jika belum)
+```bash
+cd /root/swarm_ws
+source /opt/ros/noetic/setup.bash
+catkin_make
+source devel/setup.bash
+```
+> Jika muncul error `catkin_make: command not found`, pastikan environment ROS sudah aktif dengan `source /opt/ros/noetic/setup.bash`. Untuk otomatisasi, tambahkan ke `~/.bashrc` dalam container:
+```bash
+echo "source /opt/ros/noetic/setup.bash" >> ~/.bashrc
+source ~/.bashrc
+```
+> Jika build berhasil, akan muncul log seperti:
+> `-- +++ processing catkin package: 'swarm_patrol'`
+> `-- Build files have been written to: /root/swarm_ws/build`
+
+### 4. Jalankan Simulasi Utama
+```bash
+source /root/swarm_ws/devel/setup.bash
+roslaunch swarm_patrol launch_all.launch
+```
+> Jika muncul error `Resource not found: rosbridge_server`, artinya package belum terinstall di dalam container. Solusinya:
+```bash
+apt update
+apt install -y ros-noetic-rosbridge-server
+source /opt/ros/noetic/setup.bash
+roslaunch swarm_patrol launch_all.launch
+```
+
+```bash
+source /root/swarm_ws/devel/setup.bash
+roslaunch swarm_patrol launch_all.launch
+```
+> Jika muncul error `Resource not found: rosbridge_server`, artinya package belum terinstall di dalam container. Solusinya:
+```bash
+apt update
+apt install -y ros-noetic-rosbridge-server
+source /opt/ros/noetic/setup.bash
+roslaunch swarm_patrol launch_all.launch
+```
+
+> Jika muncul error `launch_all.launch is neither a launch file in package [swarm_patrol]`, periksa hal-hal berikut:
+- Pastikan struktur folder valid:
+  `/root/swarm_ws/src/swarm_patrol/`
+- Pastikan sudah build dengan `catkin_make` dan sudah `source` workspace:
+```bash
+cd /root/swarm_ws
+catkin_make
+source /root/swarm_ws/devel/setup.bash
+```
+- Verifikasi package terdeteksi oleh ROS:
+```bash
+rospack list | grep swarm_patrol
+```
+
+> Jika muncul error `Cannot locate node of type [...] in package [swarm_patrol]`, artinya file Python belum diberi izin eksekusi. Solusinya:
+```bash
+cd /root/swarm_ws/src/swarm_patrol/scripts
+chmod +x *.py
+```
+> Jika muncul error `Resource not found: rosbridge_server`, artinya package belum terinstall di dalam container. Solusinya:
+```bash
+apt update
+apt install -y ros-noetic-rosbridge-server
+source /opt/ros/noetic/setup.bash
+roslaunch swarm_patrol launch_all.launch
+```
+
+> Jika muncul error `launch_all.launch is neither a launch file in package [swarm_patrol]`, periksa hal-hal berikut:
+- Pastikan struktur folder valid:
+  `/root/swarm_ws/src/swarm_patrol/`
+- Pastikan sudah build dengan `catkin_make` dan sudah `source` workspace:
+```bash
+cd /root/swarm_ws
+catkin_make
+source /root/swarm_ws/devel/setup.bash
+```
+- Verifikasi package terdeteksi oleh ROS:
+```bash
+rospack list | grep swarm_patrol
+```, artinya package belum terinstall di dalam container. Solusinya:
+```bash
+apt update
+apt install -y ros-noetic-rosbridge-server
+source /opt/ros/noetic/setup.bash
+roslaunch swarm_patrol launch_all.launch
+```
+> Ini akan memulai node drone, visualisasi marker, serta server rosbridge.
+
+### 5. Buka Web UI untuk Kontrol
+### Tujuan:
+Membuat dan menjalankan antarmuka web berbasis HTML + ROSLIB untuk:
+1. **Memilih ruangan tempat kotak merah**.
+2. **Menonaktifkan drone leader secara manual**.
+3. **Menampilkan log sistem secara real-time**.
+
+### 📂 Lokasi file:
+`~/docker_shared/swarm_ws/src/swarm_patrol/ui/swarm_ui.html`
+
+### 1. **Pastikan `rosbridge_websocket` berjalan**
+Karena Web UI menggunakan koneksi websocket untuk komunikasi ROS, pastikan `roslaunch swarm_patrol launch_all.launch` sudah dijalankan dan tidak error pada bagian ini:
+```
+Rosbridge WebSocket server started at ws://0.0.0.0:9090
+```
+
+### 2. **Buka UI HTML di browser host (Mac)**
+```bash
+open ~/docker_shared/swarm_ws/src/swarm_patrol/ui/swarm_ui.html
+```
+> Catatan: `open` hanya berfungsi di Mac. Untuk Windows atau Linux, gunakan `xdg-open` atau buka file secara manual.
+
+### 3. **Kontrol dari Web UI**
+- Pilih salah satu tombol radio: Room 1 / Room 2 / Room 3
+- Klik `Set Red Box Location` → akan mengirimkan data ke topic `/webui/room_selection`
+- Klik `Nonaktifkan Drone Leader` → akan mengirim sinyal ke topic `/webui/disable_leader`
+- Semua log sistem muncul di panel log di bawahnya secara real-time (via `/swarm/log`).
+
+### 4. **Pastikan jaringan Docker bisa diakses oleh browser**
+Jika WebSocket tidak tersambung (`roslibjs` error), pastikan:
+- Anda membuka file HTML dari **host**, bukan dari dalam container.
+- Docker container menggunakan `--network host` (opsional untuk testing WebSocket).
+
+### 🔍 Cara Cek Komunikasi WebUI
+
+1. **Lihat log terminal** yang menjalankan ROS:
+   - Akan ada output seperti:
+     ```
+     [WEB_UI] Red box ditetapkan ke Room 2
+     [WEB_UI] Leader (/swarm_drone1) telah dinonaktifkan!
+     ```
+
+2. **Cek topic data:**
+```bash
+rostopic echo /webui/room_selection
+rostopic echo /webui/disable_leader
+```
+
+### 🔧 Troubleshooting
+| Masalah | Solusi |
+|--------|--------|
+| WebSocket tidak connect | Pastikan rosbridge sudah berjalan dan `roslaunch` tidak error |
+| Tidak ada log tampil | Cek apakah `/swarm/log` di-subscribe dengan benar oleh JavaScript |
+| Tombol tidak bekerja | Pastikan script JS di file `swarm_ui.html` aktif dan `roslib.min.js` berhasil di-load |
+| rosnode tidak mati saat klik tombol kill | Pastikan nama node sesuai (`/swarm_drone1`) dan file `web_control_node.py` menerima topik |
+
+### 6. Menampilkan Visualisasi (Opsional)
+```bash
+rviz
+```
+> Pastikan fixed frame: `map` dan tambahkan marker dari topic `/visualization_marker`
+
+### 7. Menghentikan Simulasi (di Mac)
+```bash
+./stop_docker_swarm.sh
+```
+> Ini akan menghentikan dan menghapus container agar bersih.
+
+## 🧪 DEBUG PARAMETER (Jika drone_id tetap `droneX`)
+
+Jika log masih menampilkan `droneX`, pastikan kamu:
+- Menjalankan file `drone_behavior.py` dari path `/root/swarm_ws/src/swarm_patrol/scripts`
+- Menambahkan `launch-prefix="python3"` di file `.launch`
+- Memindahkan `rospy.init_node(...)` ke dalam blok `__main__` **sebelum** `rospy.get_param()` dipanggil
+- Cek hasil dengan perintah:
+```bash
+rosparam get /drone1/drone_id
+rosparam get /drone2/drone_id
+rosparam get /drone3/drone_id
+```
+- Tambahkan debug print di script:
+```python
+print(f"🟢 Param drone_id yang diterima: {drone_id_param}")
+```
+
 ## 📌 CATATAN TAMBAHAN
 - Seluruh sistem ini telah diuji untuk environment Docker + ROS Noetic.
 - Leader fallback otomatis diuji dengan simulasi pematian node.
 - Web UI digunakan via `rosbridge_websocket`.
 
 ---
+
+

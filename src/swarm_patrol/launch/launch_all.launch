@@ -1,0 +1,6 @@
+<launch>
+  <include file="$(find swarm_patrol)/launch/visualization.launch" />
+  <include file="$(find swarm_patrol)/launch/swarm_patrol.launch" />
+  <node pkg="swarm_patrol" type="web_control_node.py" name="web_control" output="screen" />
+  <include file="$(find rosbridge_server)/launch/rosbridge_websocket.launch" />
+</launch>

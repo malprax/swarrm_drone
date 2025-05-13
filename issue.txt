@@ -1,0 +1,33 @@
+
+##    KOREKSI ISSUE
+Mau sekarang kita lanjut ke:
+	•	Perbaikan ID drone agar tampil drone1, drone2, drone3?
+	•	Atau lanjut tes kontrol dari Web UI-nya dulu?
+
+Kamu pimpin, mas bro 🫡
+
+
+🧠 Apa yang terjadi saat launch_all.launch dijalankan:
+	1.	Menjalankan node visualisasi:
+	•	room_marker.py → menampilkan area Room 1, 2, 3
+	•	red_box_marker.py → menempatkan kotak merah berdasarkan input
+	2.	Menjalankan drone:
+	•	drone_behavior.py untuk tiga drone (1 leader, 2 member)
+	•	Mereka akan melakukan pencarian dan mencatat log
+	3.	Menjalankan web kontrol:
+	•	web_control_node.py mendeteksi input pengguna (ruangan & kill leader)
+	4.	Menjalankan rosbridge websocket:
+	•	Menghubungkan Web UI (swarm_ui.html) dengan ROS backend
+
+⸻
+
+✅ Tanda bahwa simulasi berjalan sukses:
+	•	Tidak ada error di terminal
+	•	Tiga drone aktif dan log rosout menampilkan aktivitas
+	•	Kamu bisa buka Web UI dan mengontrol dari situ
+	•	Jika menjalankan rviz, marker akan muncul
+
+Mau saya tambahkan detail penjelasan ini ke doku
+
+could not contact ROS master at http://localhost:11311 retrying
+video dari 0:46 sampai 1:04
