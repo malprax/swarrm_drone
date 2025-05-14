@@ -1,0 +1,24 @@
+<?xml version="1.0" ?>
+<sdf version="1.6">
+  <model name="blueprint_world">
+    <static>true</static>
+    <link name="blueprint_floor">
+      <visual name="visual">
+        <geometry>
+          <plane>
+            <normal>0 0 1</normal>
+            <size>10 10</size> <!-- skala dunia -->
+          </plane>
+        </geometry>
+        <material>
+          <script>
+            <uri>model://blueprint_world/materials/scripts</uri>
+            <uri>model://blueprint_world/materials/textures</uri>
+            <name>Gazebo/BlueprintFloor</name>
+          </script>
+          <ambient>1 1 1 1</ambient>
+        </material>
+      </visual>
+    </link>
+  </model>
+</sdf>

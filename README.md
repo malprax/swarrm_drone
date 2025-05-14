@@ -14,6 +14,8 @@ Simulasi ini menggambarkan misi kolaboratif dari tiga drone untuk mencari kotak 
 6. **Kembali ke Awal**: Drone kembali ke posisi take-off.
 7. **Leader Fallback**: Jika leader mati, member akan otomatis menggantikannya.
 8. **Web UI**: Memungkinkan pemilihan ruangan awal dan simulasi pematian leader.
+9. **Gazebo**: Digunakan untuk simulasi visual 3D dan fisika drone secara real-time.
+
 
 ---
 
@@ -23,22 +25,27 @@ docker_shared/
 └── swarm_ws/
     ├── start_docker_swarm.sh
     ├── stop_docker_swarm.sh
-    └── src/
-        └── swarm_patrol/
-            ├── CMakeLists.txt
-            ├── package.xml
-            ├── launch/
-            │   ├── swarm_patrol.launch
-            │   ├── visualization.launch
-            │   └── launch_all.launch
-            ├── scripts/
-            │   ├── drone_behavior.py
-            │   ├── red_box_marker.py
-            │   ├── room_marker.py
-            │   ├── leader_fallback.py
-            │   └── web_control_node.py
-            └── ui/
-                └── swarm_ui.html
+    ├── gazebo_models/             # Model Gazebo (tambahan)
+    ├── launch/
+    │   ├── swarm_patrol.launch
+    │   ├── visualization.launch
+    │   ├── launch_all.launch
+    │   └── gazebo_world.launch    # Untuk simulasi Gazebo
+    ├── worlds/                    # Dunia simulasi Gazebo (tambahan)
+    │   └── search_world.world
+    ├── src/
+    │   └── swarm_patrol/
+    │       ├── CMakeLists.txt
+    │       ├── package.xml
+    │       ├── launch/
+    │       ├── scripts/
+    │       │   ├── drone_behavior.py
+    │       │   ├── red_box_marker.py
+    │       │   ├── room_marker.py
+    │       │   ├── leader_fallback.py
+    │       │   └── web_control_node.py
+    │       └── ui/
+    │           └── swarm_ui.html
 ```
 
 ---
@@ -474,7 +481,69 @@ if __name__ == '__main__':
 ```
 
 ---
+### gazebo_models/model.sdf
+```bash
+<?xml version="1.0" ?>
+<sdf version="1.6">
+  <model name="blueprint_world">
+    <static>true</static>
+    <link name="blueprint_floor">
+      <visual name="visual">
+        <geometry>
+          <plane>
+            <normal>0 0 1</normal>
+            <size>10 10</size> <!-- skala dunia -->
+          </plane>
+        </geometry>
+        <material>
+          <script>
+            <uri>model://blueprint_world/materials/scripts</uri>
+            <uri>model://blueprint_world/materials/textures</uri>
+            <name>Gazebo/BlueprintFloor</name>
+          </script>
+          <ambient>1 1 1 1</ambient>
+        </material>
+      </visual>
+    </link>
+  </model>
+</sdf>
+```
 
+### gazebo_models/model.config
+```bash
+<?xml version="1.0"?>
+<model>
+  <name>blueprint_world</name>
+  <version>1.0</version>
+  <sdf version="1.6">model.sdf</sdf>
+  <author>
+    <name>Swarm Team</name>
+    <email>example@email.com</email>
+  </author>
+  <description>Blueprint style world for swarm drone simulation</description>
+</model>
+```
+
+### world/blueprint_world.world
+```bash
+<?xml version="1.0" ?>
+<sdf version="1.6">
+  <world name="default">
+    <include>
+      <uri>model://blueprint_world</uri>
+    </include>
+
+    <!-- Tambahkan drone model -->
+    <include>
+      <uri>model://quadrotor</uri>
+      <name>drone1</name>
+      <pose>0 0 0.1 0 0 0</pose>
+    </include>
+
+    <!-- Tambah drone lainnya -->
+  </world>
+</sdf>
+```
 ### 📥 PETUNJUK MENJALANKAN SIMULASI (DARI AWAL)
 
 ### 1. Buka Terminal di MacBook (Host)
@@ -636,10 +705,35 @@ rostopic echo /webui/disable_leader
 | rosnode tidak mati saat klik tombol kill | Pastikan nama node sesuai (`/swarm_drone1`) dan file `web_control_node.py` menerima topik |
 
 ### 6. Menampilkan Visualisasi (Opsional)
+#### Langkah 1: Instal Gazebo dan Plugin di Dalam Container
 ```bash
-rviz
+apt update
+apt install -y gazebo11 libgazebo11-dev
+apt install -y ros-noetic-gazebo-ros-pkgs ros-noetic-gazebo-ros-control
 ```
-> Pastikan fixed frame: `map` dan tambahkan marker dari topic `/visualization_marker`
+
+#### Langkah 2: Tambah Dunia Gazebo
+Contoh file: `worlds/search_world.world` dengan tiga ruangan dan landasan take-off.
+
+#### Langkah 3: Tambah Launch File Gazebo
+Contoh file `launch/gazebo_world.launch`:
+```xml
+<launch>
+  <include file="$(find gazebo_ros)/launch/empty_world.launch">
+    <arg name="world_name" value="$(find swarm_patrol)/worlds/search_world.world"/>
+  </include>
+</launch>
+```
+
+#### Langkah 4: Integrasi Model Drone
+Gunakan model dari `hector_quadrotor` atau `rotors_simulator`, pastikan berada di folder `gazebo_models/`.
+
+#### Langkah 5: Jalankan Bersama Node ROS
+Edit `launch_all.launch` untuk menyertakan `gazebo_world.launch` sebelum node drone.
+
+```xml
+<include file="$(find swarm_patrol)/launch/gazebo_world.launch" />
+```
 
 ### 7. Menghentikan Simulasi (di Mac)
 ```bash
