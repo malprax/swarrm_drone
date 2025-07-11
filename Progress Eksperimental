@@ -1,0 +1,108 @@
+**Mini Drone ESP8266 Tanpa GPS: Riset Perangkat Mekanik & Elektronik**
+
+---
+
+### 🔹 Spesifikasi Mini Drone
+
+* **Ukuran maksimum:** 10x10 cm, tinggi 5 cm
+* **Kontroler utama:** ESP8266 (alternatif: ESP32-CAM)
+* **Komunikasi antar drone:** Tanpa GPS, menggunakan protokol WiFi P2P (ESP-NOW)
+* **Fitur:**
+
+  * Deteksi objek menggunakan kamera dengan segmentasi warna HSV
+  * Pengolahan data sensor IMU + PID untuk stabilisasi
+  * Deteksi tabrakan tanpa sentuhan
+
+---
+
+### 🛠️ Komponen Mekanik
+
+| Komponen      | Detail                                                   |
+| ------------- | -------------------------------------------------------- |
+| **Frame**     | Frame 100mm mini drone (bisa cetak 3D atau carbon fiber) |
+| **Motor**     | 4x Coreless Brushed Motor (misal: 8520)                  |
+| **Propeller** | 55mm-65mm 2-blade propeller                              |
+| **ESC**       | MOSFET H-Bridge atau DRV8833 module                      |
+
+---
+
+### ⚙️ Komponen Elektronik
+
+#### 🧱 Kontroler Utama
+
+* **ESP8266** (WeMos D1 Mini / ESP-12F)
+* Alternatif lebih kuat: **ESP32-CAM** (kamera internal + dual-core)
+
+#### 📏 IMU
+
+* **MPU6050** (Accelerometer + Gyroscope)
+* Alternatif dengan kompas: **MPU9250**
+
+#### ⚡ PID Control
+
+* Dijalankan langsung di mikrokontroler
+* Frekuensi update: 100–200 Hz (ideal untuk stabilisasi drone)
+
+---
+
+### 📸 Kamera dan Deteksi Objek
+
+| Komponen          | Detail                                        |
+| ----------------- | --------------------------------------------- |
+| **Kamera**        | OV2640 (pada ESP32-CAM)                       |
+| **Proses Gambar** | RGB ke HSV, thresholding warna, deteksi objek |
+| **Output**        | Koordinat objek diteruskan ke sistem PID      |
+
+---
+
+### 📡 Komunikasi Antar Drone (Tanpa GPS)
+
+| Teknologi      | Detail                                                  |
+| -------------- | ------------------------------------------------------- |
+| **ESP-NOW**    | Protokol WiFi P2P dari Espressif, tidak butuh router    |
+| **Broadcast**  | Bisa kirim pesan ke banyak drone secara langsung        |
+| **Alternatif** | nRF24L01+ untuk SPI-based mesh, jika butuh lebih stabil |
+
+---
+
+### 🛡️ Sensor Tambahan (Anti-Tabrak)
+
+| Sensor                | Detail                                       |
+| --------------------- | -------------------------------------------- |
+| **VL53L0X / VL53L1X** | ToF sensor kecil untuk penghindaran tabrakan |
+| **IR Sensor**         | Alternatif murah, tapi akurasi rendah        |
+
+---
+
+### 🔋 Power Supply
+
+| Komponen              | Detail                              |
+| --------------------- | ----------------------------------- |
+| **Baterai**           | LiPo 1S 3.7V, 300–600 mAh           |
+| **Voltage Converter** | MT3608 Boost Converter (3.7V ke 5V) |
+
+---
+
+### 📊 Ringkasan Komponen
+
+| Kategori       | Komponen                  |
+| -------------- | ------------------------- |
+| Frame          | 100mm mini drone frame    |
+| Motor          | 4x Coreless Brushed 8520  |
+| ESC            | DRV8833 / MOSFET H-Bridge |
+| Mikrokontroler | ESP8266 / ESP32-CAM       |
+| IMU            | MPU6050 / MPU9250         |
+| Kamera         | OV2640 (ESP32-CAM)        |
+| Komunikasi     | ESP-NOW (WiFi P2P)        |
+| Sensor Jarak   | VL53L0X                   |
+| Baterai        | LiPo 1S 500 mAh           |
+| Converter      | MT3608 Step-up 5V         |
+
+---
+
+Selanjutnya kita bisa lanjut ke:
+
+* Desain wiring dan PCB
+* Flowchart komunikasi antar drone
+* Kode dasar ESP-NOW + PID + Kamera HSV
+* Rancangan struktur CAD (STL/Fusion 360)
