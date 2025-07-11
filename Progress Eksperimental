@@ -100,9 +100,224 @@
 
 ---
 
-Selanjutnya kita bisa lanjut ke:
 
-* Desain wiring dan PCB
-* Flowchart komunikasi antar drone
-* Kode dasar ESP-NOW + PID + Kamera HSV
-* Rancangan struktur CAD (STL/Fusion 360)
+
+// === KODE ESP32-CAM MINI DRONE (Revisi Leader-Member) ===
+// Fungsi: Pemilihan Leader, LED Indikator, PID Stabilizer, Kamera HSV, ESP-NOW, VL53L0X
+
+#include <WiFi.h>
+#include <esp_now.h>
+#include <Wire.h>
+#include <Adafruit_MPU6050.h>
+#include <Adafruit_Sensor.h>
+#include <Adafruit_VL53L0X.h>
+#include <esp_camera.h>
+
+// === PINOUT ESP32-CAM ===
+// Motor FL: GPIO 12, FR: GPIO 13, BL: GPIO 14, BR: GPIO 15
+// I2C SDA/SCL: GPIO 21 / GPIO 22
+// LED Merah: GPIO 4
+// LED Biru: GPIO 2
+
+// === LED Indikator ===
+#define LED_MERAH 4
+#define LED_BIRU 2
+
+// === MPU6050 ===
+Adafruit_MPU6050 mpu;
+float angle_pitch = 0;
+float Kp = 1.5, Ki = 0.0, Kd = 0.2;
+float err_pitch = 0, prev_err_pitch = 0, sum_err_pitch = 0;
+
+// === VL53L0X ===
+Adafruit_VL53L0X lox = Adafruit_VL53L0X();
+
+// === STATUS DRONE ===
+bool isLeader = false;
+bool objectFound = false;
+uint8_t droneID;
+uint8_t allIDs[3] = {1, 2, 3};
+
+// === ESP-NOW KOMUNIKASI ===
+typedef struct struct_message {
+  uint8_t id;
+  bool isLeader;
+  bool objectDetected;
+} struct_message;
+
+struct_message myData;
+struct_message incomingData;
+
+void OnDataRecv(const uint8_t * mac, const uint8_t *incoming, int len) {
+  memcpy(&incomingData, incoming, sizeof(incomingData));
+  if (incomingData.objectDetected && !objectFound) {
+    Serial.printf("[Drone %d] menemukan objek!\n", incomingData.id);
+    objectFound = true;
+  }
+}
+
+void setupESPNow() {
+  WiFi.mode(WIFI_STA);
+  if (esp_now_init() != ESP_OK) {
+    Serial.println("ESP-NOW Gagal");
+    return;
+  }
+  esp_now_register_recv_cb(OnDataRecv);
+}
+
+void setupLED() {
+  pinMode(LED_MERAH, OUTPUT);
+  pinMode(LED_BIRU, OUTPUT);
+}
+
+void blinkLED(uint8_t pin) {
+  digitalWrite(pin, HIGH);
+  delay(150);
+  digitalWrite(pin, LOW);
+  delay(150);
+}
+
+void randomizeRole() {
+  randomSeed(analogRead(0));
+  droneID = random(1, 4); // Drone ID 1–3
+  uint8_t leaderID = allIDs[random(0, 3)];
+  isLeader = (droneID == leaderID);
+  Serial.printf("Drone ID: %d, Leader ID: %d\n", droneID, leaderID);
+}
+
+// === PID CONTROL ===
+float computePID(float target, float current) {
+  float error = target - current;
+  sum_err_pitch += error;
+  float delta = error - prev_err_pitch;
+  prev_err_pitch = error;
+  return Kp * error + Ki * sum_err_pitch + Kd * delta;
+}
+
+void setupMotorPWM() {
+  ledcSetup(0, 1000, 8); ledcAttachPin(12, 0);
+  ledcSetup(1, 1000, 8); ledcAttachPin(13, 1);
+  ledcSetup(2, 1000, 8); ledcAttachPin(14, 2);
+  ledcSetup(3, 1000, 8); ledcAttachPin(15, 3);
+}
+
+void updateMotorPower(float pid) {
+  int baseSpeed = 120;
+  int adj = pid * 10.0;
+  ledcWrite(0, constrain(baseSpeed + adj, 0, 255));
+  ledcWrite(1, constrain(baseSpeed + adj, 0, 255));
+  ledcWrite(2, constrain(baseSpeed - adj, 0, 255));
+  ledcWrite(3, constrain(baseSpeed - adj, 0, 255));
+}
+
+// === HSV DETEKSI OBJEK ===
+bool detectRedObject() {
+  camera_fb_t *fb = esp_camera_fb_get();
+  if (!fb) return false;
+  int hit = 0;
+  for (int i = 0; i < fb->len; i += 3) {
+    uint8_t r = fb->buf[i];
+    uint8_t g = fb->buf[i + 1];
+    uint8_t b = fb->buf[i + 2];
+    float rf = r / 255.0, gf = g / 255.0, bf = b / 255.0;
+    float max = fmaxf(fmaxf(rf, gf), bf);
+    float min = fminf(fminf(rf, gf), bf);
+    float delta = max - min;
+    float h = 0;
+    if (delta > 0) {
+      if (max == rf) h = 60 * fmod(((gf - bf) / delta), 6);
+      else if (max == gf) h = 60 * (((bf - rf) / delta) + 2);
+      else h = 60 * (((rf - gf) / delta) + 4);
+    }
+    if (h < 0) h += 360;
+    if ((h < 20 || h > 340) && max > 0.6 && delta > 0.3) {
+      hit++;
+    }
+  }
+  esp_camera_fb_return(fb);
+  return (hit > 100);
+}
+
+void setupMPU() {
+  if (!mpu.begin()) {
+    Serial.println("MPU gagal");
+    while (1);
+  }
+}
+
+void setupCamera() {
+  camera_config_t config;
+  config.ledc_channel = LEDC_CHANNEL_0;
+  config.ledc_timer = LEDC_TIMER_0;
+  config.pin_d0 = 5;
+  config.pin_d1 = 18;
+  config.pin_d2 = 19;
+  config.pin_d3 = 21;
+  config.pin_d4 = 36;
+  config.pin_d5 = 39;
+  config.pin_d6 = 34;
+  config.pin_d7 = 35;
+  config.pin_xclk = 0;
+  config.pin_pclk = 22;
+  config.pin_vsync = 25;
+  config.pin_href = 23;
+  config.pin_sscb_sda = 26;
+  config.pin_sscb_scl = 27;
+  config.pin_pwdn = 32;
+  config.pin_reset = -1;
+  config.xclk_freq_hz = 20000000;
+  config.pixel_format = PIXFORMAT_JPEG;
+  config.frame_size = FRAMESIZE_QVGA;
+  config.fb_count = 1;
+  esp_camera_init(&config);
+}
+
+void setup() {
+  Serial.begin(115200);
+  Wire.begin(21, 22);
+  setupLED();
+  setupMotorPWM();
+  setupMPU();
+  setupESPNow();
+  setupCamera();
+  if (!lox.begin()) while (1);
+  randomizeRole();
+}
+
+void loop() {
+  // LED status
+  if (isLeader) blinkLED(LED_BIRU);
+  else blinkLED(LED_MERAH);
+
+  // MPU dan PID
+  sensors_event_t a, g, t;
+  mpu.getEvent(&a, &g, &t);
+  angle_pitch = a.acceleration.y;
+  float pid = computePID(0, angle_pitch);
+  updateMotorPower(pid);
+
+  // Sensor jarak
+  VL53L0X_RangingMeasurementData_t measure;
+  lox.rangingTest(&measure, false);
+  if (measure.RangeStatus == 0 && measure.RangeMilliMeter < 200) {
+    ledcWrite(0, 100); ledcWrite(1, 100);
+    ledcWrite(2, 80);  ledcWrite(3, 80);
+  }
+
+  // Deteksi objek
+  bool found = detectRedObject();
+  if (found && !objectFound) {
+    Serial.println("Objek merah ditemukan!");
+    objectFound = true;
+  }
+
+  // Kirim status
+  myData.id = droneID;
+  myData.isLeader = isLeader;
+  myData.objectDetected = objectFound;
+  esp_now_send(NULL, (uint8_t *)&myData, sizeof(myData));
+
+  delay(100);
+}
+
+
