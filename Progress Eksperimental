@@ -448,3 +448,56 @@ class HomeView extends StatelessWidget {
 
 
 
+// Node.js WebSocket Server untuk ESP32 → Flutter Web
+// Jalankan: `node server.js`
+
+const WebSocket = require('ws');
+const wss = new WebSocket.Server({ port: 8080 });
+
+let clients = [];
+
+wss.on('connection', function connection(ws) {
+  console.log('Flutter Web Connected');
+  clients.push(ws);
+
+  ws.on('close', () => {
+    clients = clients.filter(c => c !== ws);
+    console.log('Flutter Web Disconnected');
+  });
+});
+
+// Terima data dari ESP32 (WebSocket Client)
+wss.on('headers', function headers(headers, req) {
+  // Allow CORS
+  headers.push('Access-Control-Allow-Origin: *');
+});
+
+wss.on('listening', () => {
+  console.log('WebSocket Server running on ws://localhost:8080');
+});
+
+// Broadcast ke semua Flutter Web client
+type ESP32Data = {
+  id: number;
+  isLeader: boolean;
+  objectDetected: boolean;
+};
+
+wss.on('connection', function connection(ws) {
+  ws.on('message', function incoming(message) {
+    console.log('Data from ESP32:', message.toString());
+    clients.forEach(client => {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(message.toString());
+      }
+    });
+  });
+});
+
+
+File skrip Node.js WebSocket Server sudah siap. Jalankan dengan:
+npm install ws
+node server.js
+
+
+
