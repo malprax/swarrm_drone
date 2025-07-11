@@ -105,6 +105,9 @@
 // === KODE ESP32-CAM MINI DRONE (Final: Leader Report & Home Return Logic) ===
 // Fungsi: Pemilihan Leader, LED Indikator, PID Stabilizer, Kamera HSV, ESP-NOW, VL53L0X, Koordinasi Misi
 
+// === KODE ESP32-CAM MINI DRONE (Final + WebSocket Client) ===
+// Fitur: Leader/Member + HSV + VL53L0X + ESP-NOW + WebSocket ke Flutter Web
+
 #include <WiFi.h>
 #include <esp_now.h>
 #include <Wire.h>
@@ -112,13 +115,16 @@
 #include <Adafruit_Sensor.h>
 #include <Adafruit_VL53L0X.h>
 #include <esp_camera.h>
+#include <WebSocketsClient.h>
 
-// === PINOUT ESP32-CAM ===
-// Motor FL: GPIO 12, FR: GPIO 13, BL: GPIO 14, BR: GPIO 15
-// I2C SDA/SCL: GPIO 21 / GPIO 22
-// LED Merah: GPIO 4
-// LED Biru: GPIO 2
+// === KONFIGURASI JARINGAN ===
+const char* ssid = "YOUR_WIFI_SSID";
+const char* password = "YOUR_WIFI_PASS";
+const char* host = "192.168.1.100";  // IP Flutter WebSocket server
+const uint16_t port = 8080;
+WebSocketsClient webSocket;
 
+// === PINOUT ===
 #define LED_MERAH 4
 #define LED_BIRU 2
 
@@ -136,7 +142,7 @@ uint8_t droneID;
 uint8_t leaderID;
 uint8_t allIDs[3] = {1, 2, 3};
 
-// === Struktur Komunikasi ===
+// === STRUKTUR DATA ESP-NOW ===
 typedef struct struct_message {
   uint8_t id;
   bool isLeader;
@@ -151,7 +157,7 @@ void OnDataRecv(const uint8_t * mac, const uint8_t *incoming, int len) {
   if (!objectFound && incomingData.objectDetected) {
     objectFound = true;
     if (isLeader) {
-      Serial.printf("[LEADER] Member ID %d menemukan objek! Menampilkan notifikasi ke monitor.\n", incomingData.id);
+      Serial.printf("[LEADER] Member ID %d menemukan objek!\n", incomingData.id);
       returnToBase = true;
     }
   }
@@ -209,7 +215,6 @@ void updateMotorPower(float power) {
     ledcWrite(2, speed);
     ledcWrite(3, speed);
   } else {
-    // Simulasi kembali ke homebase
     ledcWrite(0, 80);
     ledcWrite(1, 80);
     ledcWrite(2, 80);
@@ -242,6 +247,15 @@ bool detectRedObject() {
   }
   esp_camera_fb_return(fb);
   return (hit > 100);
+}
+
+void setupWebSocket() {
+  webSocket.begin(host, port, "/");
+  webSocket.onEvent([](WStype_t type, uint8_t * payload, size_t length) {
+    if (type == WStype_CONNECTED) {
+      Serial.println("WebSocket Connected");
+    }
+  });
 }
 
 void setupMPU() {
@@ -284,27 +298,30 @@ void setup() {
   setupLED();
   setupMotorPWM();
   setupMPU();
-  setupESPNow();
   setupCamera();
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  setupESPNow();
+  setupWebSocket();
   if (!lox.begin()) while (1);
   randomizeRole();
 }
 
 void loop() {
-  // LED
+  webSocket.loop();
+
   if (isLeader) blinkLED(LED_BIRU);
   else blinkLED(LED_MERAH);
 
-  // MPU
   sensors_event_t a, g, t;
   mpu.getEvent(&a, &g, &t);
   angle_pitch = a.acceleration.y;
   float pid = computePID(0, angle_pitch);
-
-  // Motor update
   updateMotorPower(pid);
 
-  // Sensor Jarak
   VL53L0X_RangingMeasurementData_t measure;
   lox.rangingTest(&measure, false);
   if (measure.RangeStatus == 0 && measure.RangeMilliMeter < 200) {
@@ -312,25 +329,27 @@ void loop() {
     ledcWrite(2, 80);  ledcWrite(3, 80);
   }
 
-  // Deteksi Objek
   if (!objectFound && detectRedObject()) {
     objectFound = true;
-    if (isLeader) {
-      Serial.println("[LEADER] Saya menemukan objek merah!");
-      returnToBase = true;
-    } else {
-      Serial.println("[MEMBER] Objek merah ditemukan, melapor ke Leader...");
-    }
+    if (isLeader) Serial.println("[LEADER] Objek ditemukan!");
+    else Serial.println("[MEMBER] Objek ditemukan, lapor!");
+    returnToBase = true;
   }
 
-  // Kirim Status
   myData.id = droneID;
   myData.isLeader = isLeader;
   myData.objectDetected = objectFound;
   esp_now_send(NULL, (uint8_t *)&myData, sizeof(myData));
 
+  String json = "{";
+  json += "\"id\":" + String(droneID) + ",";
+  json += "\"isLeader\":" + String(isLeader ? "true" : "false") + ",";
+  json += "\"objectDetected\":" + String(objectFound ? "true" : "false") + "}";
+  webSocket.sendTXT(json);
+
   delay(100);
 }
+
 
 
 
