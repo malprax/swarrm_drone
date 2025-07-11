@@ -102,8 +102,8 @@
 
 
 
-// === KODE ESP32-CAM MINI DRONE (Revisi Leader-Member) ===
-// Fungsi: Pemilihan Leader, LED Indikator, PID Stabilizer, Kamera HSV, ESP-NOW, VL53L0X
+// === KODE ESP32-CAM MINI DRONE (Final: Leader Report & Home Return Logic) ===
+// Fungsi: Pemilihan Leader, LED Indikator, PID Stabilizer, Kamera HSV, ESP-NOW, VL53L0X, Koordinasi Misi
 
 #include <WiFi.h>
 #include <esp_now.h>
@@ -119,26 +119,24 @@
 // LED Merah: GPIO 4
 // LED Biru: GPIO 2
 
-// === LED Indikator ===
 #define LED_MERAH 4
 #define LED_BIRU 2
 
-// === MPU6050 ===
 Adafruit_MPU6050 mpu;
+Adafruit_VL53L0X lox = Adafruit_VL53L0X();
+
 float angle_pitch = 0;
 float Kp = 1.5, Ki = 0.0, Kd = 0.2;
 float err_pitch = 0, prev_err_pitch = 0, sum_err_pitch = 0;
 
-// === VL53L0X ===
-Adafruit_VL53L0X lox = Adafruit_VL53L0X();
-
-// === STATUS DRONE ===
 bool isLeader = false;
 bool objectFound = false;
+bool returnToBase = false;
 uint8_t droneID;
+uint8_t leaderID;
 uint8_t allIDs[3] = {1, 2, 3};
 
-// === ESP-NOW KOMUNIKASI ===
+// === Struktur Komunikasi ===
 typedef struct struct_message {
   uint8_t id;
   bool isLeader;
@@ -150,9 +148,12 @@ struct_message incomingData;
 
 void OnDataRecv(const uint8_t * mac, const uint8_t *incoming, int len) {
   memcpy(&incomingData, incoming, sizeof(incomingData));
-  if (incomingData.objectDetected && !objectFound) {
-    Serial.printf("[Drone %d] menemukan objek!\n", incomingData.id);
+  if (!objectFound && incomingData.objectDetected) {
     objectFound = true;
+    if (isLeader) {
+      Serial.printf("[LEADER] Member ID %d menemukan objek! Menampilkan notifikasi ke monitor.\n", incomingData.id);
+      returnToBase = true;
+    }
   }
 }
 
@@ -179,13 +180,12 @@ void blinkLED(uint8_t pin) {
 
 void randomizeRole() {
   randomSeed(analogRead(0));
-  droneID = random(1, 4); // Drone ID 1–3
-  uint8_t leaderID = allIDs[random(0, 3)];
+  droneID = random(1, 4);
+  leaderID = allIDs[random(0, 3)];
   isLeader = (droneID == leaderID);
   Serial.printf("Drone ID: %d, Leader ID: %d\n", droneID, leaderID);
 }
 
-// === PID CONTROL ===
 float computePID(float target, float current) {
   float error = target - current;
   sum_err_pitch += error;
@@ -201,16 +201,22 @@ void setupMotorPWM() {
   ledcSetup(3, 1000, 8); ledcAttachPin(15, 3);
 }
 
-void updateMotorPower(float pid) {
-  int baseSpeed = 120;
-  int adj = pid * 10.0;
-  ledcWrite(0, constrain(baseSpeed + adj, 0, 255));
-  ledcWrite(1, constrain(baseSpeed + adj, 0, 255));
-  ledcWrite(2, constrain(baseSpeed - adj, 0, 255));
-  ledcWrite(3, constrain(baseSpeed - adj, 0, 255));
+void updateMotorPower(float power) {
+  int speed = constrain(120 + power * 10.0, 0, 255);
+  if (!returnToBase) {
+    ledcWrite(0, speed);
+    ledcWrite(1, speed);
+    ledcWrite(2, speed);
+    ledcWrite(3, speed);
+  } else {
+    // Simulasi kembali ke homebase
+    ledcWrite(0, 80);
+    ledcWrite(1, 80);
+    ledcWrite(2, 80);
+    ledcWrite(3, 80);
+  }
 }
 
-// === HSV DETEKSI OBJEK ===
 bool detectRedObject() {
   camera_fb_t *fb = esp_camera_fb_get();
   if (!fb) return false;
@@ -285,18 +291,20 @@ void setup() {
 }
 
 void loop() {
-  // LED status
+  // LED
   if (isLeader) blinkLED(LED_BIRU);
   else blinkLED(LED_MERAH);
 
-  // MPU dan PID
+  // MPU
   sensors_event_t a, g, t;
   mpu.getEvent(&a, &g, &t);
   angle_pitch = a.acceleration.y;
   float pid = computePID(0, angle_pitch);
+
+  // Motor update
   updateMotorPower(pid);
 
-  // Sensor jarak
+  // Sensor Jarak
   VL53L0X_RangingMeasurementData_t measure;
   lox.rangingTest(&measure, false);
   if (measure.RangeStatus == 0 && measure.RangeMilliMeter < 200) {
@@ -304,14 +312,18 @@ void loop() {
     ledcWrite(2, 80);  ledcWrite(3, 80);
   }
 
-  // Deteksi objek
-  bool found = detectRedObject();
-  if (found && !objectFound) {
-    Serial.println("Objek merah ditemukan!");
+  // Deteksi Objek
+  if (!objectFound && detectRedObject()) {
     objectFound = true;
+    if (isLeader) {
+      Serial.println("[LEADER] Saya menemukan objek merah!");
+      returnToBase = true;
+    } else {
+      Serial.println("[MEMBER] Objek merah ditemukan, melapor ke Leader...");
+    }
   }
 
-  // Kirim status
+  // Kirim Status
   myData.id = droneID;
   myData.isLeader = isLeader;
   myData.objectDetected = objectFound;
@@ -319,5 +331,6 @@ void loop() {
 
   delay(100);
 }
+
 
 
