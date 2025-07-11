@@ -334,3 +334,98 @@ void loop() {
 
 
 
+#### Kodingan FLutter Monitoringnya
+// Flutter Web App: Swarm Drone Monitor (WebSocket Client)
+// Menghubungkan ke Node.js WebSocket Server
+
+import 'dart:convert';
+import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import 'package:web_socket_channel/html.dart';
+
+void main() => runApp(const SwarmApp());
+
+class SwarmApp extends StatelessWidget {
+  const SwarmApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return GetMaterialApp(
+      debugShowCheckedModeBanner: false,
+      title: 'Swarm Monitor',
+      home: const HomeView(),
+    );
+  }
+}
+
+class DroneModel {
+  final int id;
+  final bool isLeader;
+  final bool objectDetected;
+
+  DroneModel({required this.id, required this.isLeader, required this.objectDetected});
+}
+
+class SwarmController extends GetxController {
+  var drones = <DroneModel>[].obs;
+  late HtmlWebSocketChannel channel;
+
+  @override
+  void onInit() {
+    super.onInit();
+    channel = HtmlWebSocketChannel.connect('ws://localhost:8080');
+    channel.stream.listen((data) {
+      final jsonData = json.decode(data);
+      updateDrone(DroneModel(
+        id: jsonData['id'],
+        isLeader: jsonData['isLeader'],
+        objectDetected: jsonData['objectDetected'],
+      ));
+    });
+  }
+
+  void updateDrone(DroneModel drone) {
+    int index = drones.indexWhere((d) => d.id == drone.id);
+    if (index >= 0) {
+      drones[index] = drone;
+    } else {
+      drones.add(drone);
+    }
+  }
+}
+
+class HomeView extends StatelessWidget {
+  const HomeView({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final controller = Get.put(SwarmController());
+
+    return Scaffold(
+      appBar: AppBar(title: const Text('Swarm Drone Monitor')),
+      body: Obx(() => ListView.builder(
+        itemCount: controller.drones.length,
+        itemBuilder: (_, i) {
+          final drone = controller.drones[i];
+          return Card(
+            margin: const EdgeInsets.all(8),
+            child: ListTile(
+              leading: Icon(
+                drone.isLeader ? Icons.star : Icons.flight,
+                color: drone.isLeader ? Colors.blue : Colors.grey,
+              ),
+              title: Text('Drone ID: ${drone.id}'),
+              subtitle: Text(drone.isLeader ? 'Leader' : 'Member'),
+              trailing: drone.objectDetected
+                  ? const Icon(Icons.warning, color: Colors.red)
+                  : const Icon(Icons.check_circle, color: Colors.green),
+            ),
+          );
+        },
+      )),
+    );
+  }
+}
+
+
+
