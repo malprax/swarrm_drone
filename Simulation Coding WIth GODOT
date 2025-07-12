@@ -1,0 +1,131 @@
+# Godot 4.x - GDScript (Updated)
+# Versi: TileMap / Area2D, Visual Thrust, Disimpan per Scene
+
+# main.gd (Attached to Main.tscn)
+extends Node2D
+
+@onready var ui = $CanvasLayer/UI
+@onready var drones = []
+@onready var object = $Object
+var mission_started = false
+var leader_index = -1
+var noise_force = 0.0
+
+func _ready():
+    spawn_drones()
+    assign_leader()
+    ui.connect("start_mission", Callable(self, "_on_start_mission"))
+    ui.connect("noise_changed", Callable(self, "_on_noise_changed"))
+
+func spawn_drones():
+    for i in range(3):
+        var drone = preload("res://scenes/Drone.tscn").instantiate()
+        drone.position = Vector2(150 + i * 100, 500)
+        drone.name = "Drone%d" % (i + 1)
+        add_child(drone)
+        drones.append(drone)
+
+func assign_leader():
+    leader_index = randi() % drones.size()
+    for i in range(drones.size()):
+        drones[i].set_role(i == leader_index)
+
+func _on_start_mission():
+    mission_started = true
+    for i in range(drones.size()):
+        drones[i].start_search(i + 1, noise_force, object)
+
+func _on_noise_changed(value):
+    noise_force = value
+    for drone in drones:
+        drone.set_noise(noise_force)
+
+func notify_object_found(by_leader: bool, drone_name: String):
+    ui.log_found(by_leader, drone_name)
+    for drone in drones:
+        drone.return_home()
+
+
+# drone.gd (Attached to scenes/Drone.tscn)
+extends Area2D
+
+var is_leader = false
+var target_room = 0
+var searching = false
+var home_pos: Vector2
+var object_ref
+var noise = 0.0
+@onready var sprite = $Sprite2D
+@onready var thrust = $ThrustEffect
+
+func set_role(leader: bool):
+    is_leader = leader
+    sprite.modulate = leader ? Color.BLUE : Color.RED
+
+func set_noise(val):
+    noise = val
+
+func start_search(room: int, noise_val: float, obj):
+    searching = true
+    target_room = room
+    home_pos = position
+    noise = noise_val
+    object_ref = obj
+    var targets = {1: Vector2(100, 200), 2: Vector2(300, 200), 3: Vector2(500, 200)}
+    var final_pos = targets.get(room, home_pos)
+    move_to(final_pos)
+
+func move_to(target):
+    var tween = get_tree().create_tween()
+    thrust.visible = true
+    tween.tween_property(self, "position", target, 2.0)
+    tween.connect("finished", Callable(self, "_on_arrived"))
+
+func _on_arrived():
+    thrust.visible = false
+    if object_ref and position.distance_to(object_ref.position) < 50:
+        if is_leader:
+            get_parent().notify_object_found(true, name)
+        else:
+            get_parent().notify_object_found(false, name)
+
+func return_home():
+    var tween = get_tree().create_tween()
+    thrust.visible = true
+    tween.tween_property(self, "position", home_pos, 2.0)
+    tween.connect("finished", Callable(self, "_hide_thrust"))
+
+func _hide_thrust():
+    thrust.visible = false
+
+
+# object.gd (Attached to scenes/Object.tscn)
+extends Area2D
+# Bisa ditambahkan CollisionShape2D untuk overlap check
+
+
+# UI.gd (Attached to scenes/UI.tscn under CanvasLayer)
+extends Control
+
+signal start_mission
+signal noise_changed(value: float)
+
+@onready var start_button = $VBoxContainer/StartButton
+@onready var slider = $VBoxContainer/NoiseSlider
+@onready var log_label = $VBoxContainer/LogLabel
+
+func _ready():
+    start_button.pressed.connect(_on_start_pressed)
+    slider.value_changed.connect(_on_slider_changed)
+
+func _on_start_pressed():
+    emit_signal("start_mission")
+
+func _on_slider_changed(val):
+    emit_signal("noise_changed", val)
+
+func log_found(by_leader: bool, who: String):
+    if by_leader:
+        log_label.text = "%s (LEADER) menemukan objek!" % who
+    else:
+        log_label.text = "%s (MEMBER) menemukan objek! Leader akan mencatat!" % who
