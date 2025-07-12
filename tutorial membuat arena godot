@@ -1,0 +1,156 @@
+Tutorial Lengkap: Membuat Arena Simulasi Drone di Godot (Untuk Pemula)
+
+Dokumen ini akan memandu Anda langkah demi langkah membuat arena simulasi seperti gambar Anda sebelumnya menggunakan Godot Engine (versi 4.x).
+
+✅ Persiapan Awal
+
+Download Godot Engine 4.x
+
+Unduh dari: https://godotengine.org/download
+
+Buat Project Baru
+
+Buka Godot
+
+Klik New Project
+
+Isi nama: SwarmDroneSim
+
+Pilih folder penyimpanan
+
+Klik Create & Edit
+
+🧱 Langkah 1: Menyiapkan Arena TileMap
+
+1. Tambahkan Scene Baru
+
+Klik + di tab atas → 2D Scene
+
+Ganti nama node utama jadi Main
+
+Klik kanan Main → Save Scene As → Main.tscn
+
+2. Tambahkan TileMap
+
+Klik kanan Main → Add Child Node → cari TileMap
+
+Klik node TileMap baru → di Inspector:
+
+Tile Set: klik + → New TileSet
+
+Klik ikon panah kanan → Edit TileSet
+
+3. Impor Gambar Tileset
+
+Letakkan file arena_tileset_generated.png ke folder res://tileset/
+
+Di editor TileSet:
+
+Klik Add Source → pilih arena_tileset_generated.png
+
+Klik tombol pensil → drag kotak 32x32 pada tiap bagian (lantai, dinding, pintu)
+
+Klik kanan tiap tile → beri nama (floor, wall, door)
+
+Klik Close
+
+4. Gambar Arena
+
+Pilih TileMap → di viewport sebelah kiri:
+
+Klik tile floor → klik area kosong untuk menggambar Home Base dan Room
+
+Klik wall dan door untuk gambar pembatas dan pintu
+
+🚁 Langkah 2: Menambahkan Objek dan Drone
+
+1. Tambahkan Object (Kotak Merah)
+
+Klik kanan Main → Add Child Node → Area2D
+
+Tambah anak node: Sprite2D dan CollisionShape2D
+
+Pilih Sprite → pilih warna merah
+
+Simpan sebagai scene: Object.tscn
+
+2. Tambahkan Drone
+
+Sama seperti object, buat Area2D baru
+
+Tambahkan anak:
+
+Sprite2D (gambar drone atau icon)
+
+CollisionShape2D
+
+Node2D bernama ThrustEffect (nanti bisa diberi efek animasi)
+
+Simpan scene ini sebagai Drone.tscn
+
+🖥️ Langkah 3: Tambahkan UI (Tombol & Slider)
+
+Klik kanan Main → Tambah CanvasLayer
+
+Tambah Control → VBoxContainer
+
+Di dalamnya tambahkan:
+
+Button → text: Start Mission
+
+HSlider → ubah min = 0, max = 10, step = 0.1
+
+Label → log misi
+
+Simpan sebagai UI.tscn
+
+💡 Langkah 4: Hubungkan Semuanya Lewat Script
+
+1. Buat Folder scripts/
+
+Buat file baru:
+
+main.gd → untuk logika utama
+
+drone.gd → untuk logika pergerakan drone
+
+ui.gd → untuk tombol & log
+
+2. Hubungkan Script ke Masing-masing Scene
+
+Klik node Main → tambah script main.gd
+
+Lakukan hal yang sama pada Drone.tscn, UI.tscn
+
+Semua contoh kode sudah dibuat pada file sebelumnya, tinggal tempelkan
+
+✅ Jalankan Proyek
+
+Klik ikon Play (▶️) di kanan atas
+
+Jika belum ada main scene, pilih Main.tscn
+
+Simulasi siap berjalan: klik tombol Start → drone akan memilih leader dan mencari objek
+
+🔚 Penutup
+
+Sekarang Anda memiliki arena simulasi swarm drone lengkap:
+
+TileMap arena
+
+Drone & objek target
+
+Slider untuk efek noise motor
+
+Tombol start & log notifikasi
+
+Jika Anda ingin melanjutkan ke:
+
+Pemilihan leader
+
+Deteksi HSV kamera (simulatif)
+
+Integrasi sensor virtual
+
+Saya siap bantu. Semoga sukses!
+
