@@ -1,3 +1,17 @@
+/scenes/
+├── Main.tscn            → menggunakan main.gd
+├── Drone.tscn           → Area2D + Sprite2D + ThrustEffect
+├── Object.tscn          → Area2D target
+├── UI.tscn              → Slider + Log + Tombol
+/scripts/
+├── main.gd
+├── drone.gd
+├── object.gd
+├── ui.gd
+
+
+
+
 # Godot 4.x - GDScript (Updated)
 # Versi: TileMap / Area2D, Visual Thrust, Disimpan per Scene
 
